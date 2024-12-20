@@ -15,8 +15,8 @@ copies or substantial portions of the Software.
 """
 
 import os
-import re
 import platform
+import re
 import subprocess
 import sys
 from ctypes import *
@@ -27,7 +27,7 @@ import numpy as np
 from PIL import Image
 
 __all__ = [
-    'Thermal',
+    "Thermal",
 ]
 
 DIRP_HANDLE = c_void_p
@@ -38,22 +38,25 @@ DIRP_VERBOSE_LEVEL_NUM = 3  # 3: Total number
 
 
 def get_default_filepaths() -> List[str]:
-    folder_plugin = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'plugins')
+    folder_plugin = r"/opt/conda/plugins"
     system = platform.system()
-    sdk = "dji_thermal_sdk_v1.5_20240507"
+    sdk = "dji_thermal_sdk_v1.4_20220929"
     architecture = "x64" if platform.architecture()[0] == "64bit" else "x86"
     extension = "so" if system == "Linux" else "dll"
-    exiftool = "exiftool" if system == "Linux" else f"{folder_plugin}/exiftool-12.35.exe"
+    exiftool = (
+        "exiftool" if system == "Linux" else f"{folder_plugin}/exiftool-12.35.exe"
+    )
     files = [
-        f'{sdk}/{system.lower()}/release_{architecture}/libdirp.{extension}',
-        f'{sdk}/{system.lower()}/release_{architecture}/libv_dirp.{extension}',
-        f'{sdk}/{system.lower()}/release_{architecture}/libv_iirp.{extension}',
+        f"{sdk}/{system.lower()}/release_{architecture}/libdirp.{extension}",
+        f"{sdk}/{system.lower()}/release_{architecture}/libv_dirp.{extension}",
+        f"{sdk}/{system.lower()}/release_{architecture}/libv_iirp.{extension}",
     ]
     if system not in ("Windows", "Linux") or architecture not in ("x64", "x86"):
-        raise NotImplementedError(f'currently not supported for running on this platform: {system} {architecture}')
-    
-    return *[os.path.join(folder_plugin, v) for v in files], exiftool
+        raise NotImplementedError(
+            f"currently not supported for running on this platform: {system} {architecture}"
+        )
 
+    return *[os.path.join(folder_plugin, v) for v in files], exiftool
 
 
 class dirp_rjpeg_version_t(Structure):
@@ -64,11 +67,11 @@ class dirp_rjpeg_version_t(Structure):
 
     _fields_ = [
         # Version number of the opened R-JPEG itself.
-        ('rjpeg', c_uint32),
+        ("rjpeg", c_uint32),
         # Version number of the header data in R-JPEG
-        ('header', c_uint32),
+        ("header", c_uint32),
         # Version number of the curve LUT data in R-JPEG
-        ('curve', c_uint32),
+        ("curve", c_uint32),
     ]
 
 
@@ -80,9 +83,9 @@ class dirp_resolotion_t(Structure):
 
     _fields_ = [
         # Horizontal size
-        ('width', c_uint32),
+        ("width", c_uint32),
         # Vertical size
-        ('height', c_uint32),
+        ("height", c_uint32),
     ]
 
 
@@ -94,22 +97,22 @@ class dirp_measurement_params_t(Structure):
 
     _fields_ = [
         # The distance to the target. Value range is [1~25] meters.
-        ('distance', c_float),
+        ("distance", c_float),
         # How strongly the target surface is emitting energy as thermal radiation. Value range is [0.10~1.00].
-        ('humidity', c_float),
+        ("humidity", c_float),
         # The relative humidity of the environment. Value range is [20~100] percent. Defualt value is 70%.
-        ('emissivity', c_float),
+        ("emissivity", c_float),
         # Reflected temperature in Celsius.
         # The surface of the target that is measured could reflect the energy radiated by the surrounding objects.
         # Value range is [-40.0~500.0]
-        ('reflection', c_float),
+        ("reflection", c_float),
     ]
 
 
 # Constants
-SEGMENT_SEP = b'\xff'
-APP1_MARKER = b'\xe1'
-MAGIC_FLIR_DEF = b'FLIR\x00'
+SEGMENT_SEP = b"\xff"
+APP1_MARKER = b"\xe1"
+MAGIC_FLIR_DEF = b"FLIR\x00"
 
 CHUNK_APP1_BYTES_COUNT = len(APP1_MARKER)
 CHUNK_LENGTH_BYTES_COUNT = 2
@@ -117,9 +120,14 @@ CHUNK_MAGIC_BYTES_COUNT = len(MAGIC_FLIR_DEF)
 CHUNK_SKIP_BYTES_COUNT = 1
 CHUNK_NUM_BYTES_COUNT = 1
 CHUNK_TOT_BYTES_COUNT = 1
-CHUNK_PARTIAL_METADATA_LENGTH = CHUNK_APP1_BYTES_COUNT + CHUNK_LENGTH_BYTES_COUNT + CHUNK_MAGIC_BYTES_COUNT
+CHUNK_PARTIAL_METADATA_LENGTH = (
+    CHUNK_APP1_BYTES_COUNT + CHUNK_LENGTH_BYTES_COUNT + CHUNK_MAGIC_BYTES_COUNT
+)
 CHUNK_METADATA_LENGTH = (
-    CHUNK_PARTIAL_METADATA_LENGTH + CHUNK_SKIP_BYTES_COUNT + CHUNK_NUM_BYTES_COUNT + CHUNK_TOT_BYTES_COUNT
+    CHUNK_PARTIAL_METADATA_LENGTH
+    + CHUNK_SKIP_BYTES_COUNT
+    + CHUNK_NUM_BYTES_COUNT
+    + CHUNK_TOT_BYTES_COUNT
 )
 
 
@@ -138,7 +146,7 @@ def unpack(path_or_stream: Union[str, BinaryIO]) -> np.ndarray:
         When successful, a FlyrThermogram object containing thermogram data.
     """
     if isinstance(path_or_stream, str) and os.path.isfile(path_or_stream):
-        with open(path_or_stream, 'rb') as flirh:
+        with open(path_or_stream, "rb") as flirh:
             return unpack(flirh)
     elif isinstance(path_or_stream, (BufferedIOBase, BinaryIO)):
         stream = path_or_stream
@@ -148,7 +156,7 @@ def unpack(path_or_stream: Union[str, BinaryIO]) -> np.ndarray:
 
         return raw_np
     else:
-        raise ValueError('Incorrect input')
+        raise ValueError("Incorrect input")
 
 
 def extract_flir_app1(stream: BinaryIO) -> BinaryIO:
@@ -182,7 +190,7 @@ def extract_flir_app1(stream: BinaryIO) -> BinaryIO:
     chunks: Dict[int, bytes] = {}
     while True:
         b = stream.read(1)
-        if b == b'':
+        if b == b"":
             break
 
         if b != SEGMENT_SEP:
@@ -195,7 +203,7 @@ def extract_flir_app1(stream: BinaryIO) -> BinaryIO:
         chunks_count, chunk_num, chunk = parsed_chunk
         chunk_exists = chunks.get(chunk_num, None) is not None
         if chunk_exists:
-            raise ValueError('Invalid FLIR: duplicate chunk number')
+            raise ValueError("Invalid FLIR: duplicate chunk number")
         chunks[chunk_num] = chunk
 
         # Encountered all chunks, break out of loop to process found metadata
@@ -203,9 +211,9 @@ def extract_flir_app1(stream: BinaryIO) -> BinaryIO:
             break
 
     if chunks_count is None:
-        raise ValueError('Invalid FLIR: no metadata encountered')
+        raise ValueError("Invalid FLIR: no metadata encountered")
 
-    flir_app1_bytes = b''
+    flir_app1_bytes = b""
     for chunk_num in range(chunks_count + 1):
         flir_app1_bytes += chunks[chunk_num]
 
@@ -214,7 +222,9 @@ def extract_flir_app1(stream: BinaryIO) -> BinaryIO:
     return flir_app1_stream
 
 
-def parse_flir_chunk(stream: BinaryIO, chunks_count: Optional[int]) -> Optional[Tuple[int, int, bytes]]:
+def parse_flir_chunk(
+    stream: BinaryIO, chunks_count: Optional[int]
+) -> Optional[Tuple[int, int, bytes]]:
     """Parse flir chunk."""
     # Parse the chunk header. Headers are as follows (definition with example):
     #
@@ -225,7 +235,7 @@ def parse_flir_chunk(stream: BinaryIO, chunks_count: Optional[int]) -> Optional[
     marker = stream.read(CHUNK_APP1_BYTES_COUNT)
 
     length_bytes = stream.read(CHUNK_LENGTH_BYTES_COUNT)
-    length = int.from_bytes(length_bytes, 'big')
+    length = int.from_bytes(length_bytes, "big")
     length -= CHUNK_METADATA_LENGTH
     magic_flir = stream.read(CHUNK_MAGIC_BYTES_COUNT)
 
@@ -236,22 +246,29 @@ def parse_flir_chunk(stream: BinaryIO, chunks_count: Optional[int]) -> Optional[
 
     stream.seek(1, 1)  # skip 1 byte, unsure what it is for
 
-    chunk_num = int.from_bytes(stream.read(CHUNK_NUM_BYTES_COUNT), 'big')
-    chunks_tot = int.from_bytes(stream.read(CHUNK_TOT_BYTES_COUNT), 'big')
+    chunk_num = int.from_bytes(stream.read(CHUNK_NUM_BYTES_COUNT), "big")
+    chunks_tot = int.from_bytes(stream.read(CHUNK_TOT_BYTES_COUNT), "big")
 
     # Remember total chunks to verify metadata consistency
     if chunks_count is None:
         chunks_count = chunks_tot
 
     if (  # Check whether chunk metadata is consistent
-            chunks_tot is None or chunk_num < 0 or chunk_num > chunks_tot or chunks_tot != chunks_count
+        chunks_tot is None
+        or chunk_num < 0
+        or chunk_num > chunks_tot
+        or chunks_tot != chunks_count
     ):
-        raise ValueError(f'Invalid FLIR: inconsistent total chunks, should be 0 or greater, but is {chunks_tot}')
+        raise ValueError(
+            f"Invalid FLIR: inconsistent total chunks, should be 0 or greater, but is {chunks_tot}"
+        )
 
     return chunks_tot, chunk_num, stream.read(length + 1)
 
 
-def parse_thermal(stream: BinaryIO, records: Dict[int, Tuple[int, int, int, int]]) -> np.ndarray:
+def parse_thermal(
+    stream: BinaryIO, records: Dict[int, Tuple[int, int, int, int]]
+) -> np.ndarray:
     """Parse thermal."""
     record_idx_raw_data = 1
     raw_data_md = records[record_idx_raw_data]
@@ -277,11 +294,11 @@ def parse_flir_app1(stream: BinaryIO) -> Dict[int, Tuple[int, int, int, int]]:
 
     # 2. Read FLIR record directory metadata (ref 3)
     stream.seek(16, 1)
-    _ = int.from_bytes(stream.read(4), 'big')
-    record_dir_offset = int.from_bytes(stream.read(4), 'big')
-    record_dir_entries_count = int.from_bytes(stream.read(4), 'big')
+    _ = int.from_bytes(stream.read(4), "big")
+    record_dir_offset = int.from_bytes(stream.read(4), "big")
+    record_dir_entries_count = int.from_bytes(stream.read(4), "big")
     stream.seek(28, 1)
-    _ = int.from_bytes(stream.read(4), 'big')
+    _ = int.from_bytes(stream.read(4), "big")
 
     # 3. Read record directory (which is a FLIR record entry repeated
     # `record_dir_entries_count` times)
@@ -306,7 +323,9 @@ def parse_flir_app1(stream: BinaryIO) -> Dict[int, Tuple[int, int, int, int]]:
     return record_details
 
 
-def parse_flir_record_metadata(stream: BinaryIO, record_nr: int) -> Optional[Tuple[int, int, int, int]]:
+def parse_flir_record_metadata(
+    stream: BinaryIO, record_nr: int
+) -> Optional[Tuple[int, int, int, int]]:
     """Parse flir record metadata."""
     # FLIR record entry (ref 3):
     # 0x00 - int16u record type
@@ -320,18 +339,18 @@ def parse_flir_record_metadata(stream: BinaryIO, record_nr: int) -> Optional[Tup
     # 0x1c - int32u checksum: 0 for no checksum
     entry = 32 * record_nr
     stream.seek(entry)
-    record_type = int.from_bytes(stream.read(2), 'big')
+    record_type = int.from_bytes(stream.read(2), "big")
     if record_type < 1:
         return None
 
-    _ = int.from_bytes(stream.read(2), 'big')
-    _ = int.from_bytes(stream.read(4), 'big')
-    _ = int.from_bytes(stream.read(4), 'big')
-    record_offset = int.from_bytes(stream.read(4), 'big')
-    record_length = int.from_bytes(stream.read(4), 'big')
-    _ = int.from_bytes(stream.read(4), 'big')
-    _ = int.from_bytes(stream.read(4), 'big')
-    _ = int.from_bytes(stream.read(4), 'big')
+    _ = int.from_bytes(stream.read(2), "big")
+    _ = int.from_bytes(stream.read(4), "big")
+    _ = int.from_bytes(stream.read(4), "big")
+    record_offset = int.from_bytes(stream.read(4), "big")
+    record_length = int.from_bytes(stream.read(4), "big")
+    _ = int.from_bytes(stream.read(4), "big")
+    _ = int.from_bytes(stream.read(4), "big")
+    _ = int.from_bytes(stream.read(4), "big")
     return entry, record_type, record_offset, record_length
 
 
@@ -341,8 +360,8 @@ def parse_raw_data(stream: BinaryIO, metadata: Tuple[int, int, int, int]):
     stream.seek(offset)
 
     stream.seek(2, 1)
-    width = int.from_bytes(stream.read(2), 'little')
-    height = int.from_bytes(stream.read(2), 'little')
+    width = int.from_bytes(stream.read(2), "little")
+    height = int.from_bytes(stream.read(2), "little")
 
     stream.seek(offset + 32)
 
@@ -354,7 +373,7 @@ def parse_raw_data(stream: BinaryIO, metadata: Tuple[int, int, int, int]):
 
     # Check shape
     if thermal_np.shape != (height, width):
-        msg = f'Invalid FLIR: metadata\'s width and height don\'t match thermal data\'s actual width and height ({thermal_np.shape} vs ({height}, {width})'
+        msg = f"Invalid FLIR: metadata's width and height don't match thermal data's actual width and height ({thermal_np.shape} vs ({height}, {width})"
         raise ValueError(msg)
 
     # FLIR PNG data is in the wrong byte order, fix that
@@ -369,22 +388,22 @@ ABSOLUTE_ZERO = 273.15
 
 class Thermal:
     # Camera Model Name
-    DJI_XT2 = 'XT2'
-    DJI_ZH20T = 'ZH20T'
-    DJI_XTS = 'XT S'
-    DJI_XTR = 'FLIR'
+    DJI_XT2 = "XT2"
+    DJI_ZH20T = "ZH20T"
+    DJI_XTS = "XT S"
+    DJI_XTR = "FLIR"
 
-    FLIR_B60 = 'Flir b60'
-    FLIR_E40 = 'FLIR E40'
-    FLIR_T640 = 'FLIR T640'
-    FLIR = 'FLIR'
-    FLIR_DEFAULT = '*'
-    FLIR_AX8 = 'FLIR AX8'
+    FLIR_B60 = "Flir b60"
+    FLIR_E40 = "FLIR E40"
+    FLIR_T640 = "FLIR T640"
+    FLIR = "FLIR"
+    FLIR_DEFAULT = "*"
+    FLIR_AX8 = "FLIR AX8"
 
-    DJI_M2EA = 'MAVIC2-ENTERPRISE-ADVANCED'
-    DJI_H20N = 'ZH20N'
-    DJI_M3T = 'M3T'
-    DJI_M30T = 'M30T'
+    DJI_M2EA = "MAVIC2-ENTERPRISE-ADVANCED"
+    DJI_H20N = "ZH20N"
+    DJI_M3T = "M3T"
+    DJI_M30T = "M30T"
 
     # dirp_ret_code_e
     DIRP_SUCCESS = 0  # 0: Success (no error)
@@ -402,11 +421,13 @@ class Thermal:
     DIRP_ERROR_UNSUPPORTED_FUNC = -12  # -12: Unsupported function called
     DIRP_ERROR_NOT_READY = -13  # -13: Some preliminary conditions not meet
     DIRP_ERROR_ACTIVATION = -14  # -14: SDK activate failed
-    DIRP_ERROR_ADVANCED = -32  # -32: Advanced error codes which may be smaller than this value
+    DIRP_ERROR_ADVANCED = (
+        -32
+    )  # -32: Advanced error codes which may be smaller than this value
 
     def __init__(
-            self,
-            dtype=np.float32,
+        self,
+        dtype=np.float32,
     ):
         """
         Load exiftool/DJI SDK.
@@ -432,11 +453,20 @@ class Thermal:
 
         self._dtype = dtype
         self._support_camera_model = {
-            Thermal.DJI_XT2, Thermal.DJI_ZH20T, Thermal.DJI_XTS, Thermal.DJI_XTR,
-            Thermal.FLIR_B60, Thermal.FLIR_E40, Thermal.FLIR_T640,
-            Thermal.FLIR, Thermal.FLIR_DEFAULT, Thermal.FLIR_AX8,
+            Thermal.DJI_XT2,
+            Thermal.DJI_ZH20T,
+            Thermal.DJI_XTS,
+            Thermal.DJI_XTR,
+            Thermal.FLIR_B60,
+            Thermal.FLIR_E40,
+            Thermal.FLIR_T640,
+            Thermal.FLIR,
+            Thermal.FLIR_DEFAULT,
+            Thermal.FLIR_AX8,
             Thermal.DJI_M2EA,
-            Thermal.DJI_H20N, Thermal.DJI_M3T, Thermal.DJI_M30T,
+            Thermal.DJI_H20N,
+            Thermal.DJI_M3T,
+            Thermal.DJI_M30T,
         }
 
         (
@@ -451,7 +481,7 @@ class Thermal:
             self._dll_dirp_sub = CDLL(self._filepath_dirp_sub)
             self._dll_iirp = CDLL(self._filepath_iirp)
         except OSError:
-            print('Unable to load the system C library')
+            print("Unable to load the system C library")
             sys.exit()
 
         # NOTE: The following code is for dji_thermal_sdk_v1.0
@@ -474,7 +504,11 @@ class Thermal:
         # The DIRP API library will create some alloc buffers for inner usage.
         # So the application should reserve enough stack size for the library.
         self._dirp_create_from_rjpeg = self._dll_dirp.dirp_create_from_rjpeg
-        self._dirp_create_from_rjpeg.argtypes = [POINTER(c_uint8), c_int32, POINTER(DIRP_HANDLE)]
+        self._dirp_create_from_rjpeg.argtypes = [
+            POINTER(c_uint8),
+            c_int32,
+            POINTER(DIRP_HANDLE),
+        ]
         self._dirp_create_from_rjpeg.restype = c_int32
 
         # Destroy the DIRP handle.
@@ -483,21 +517,33 @@ class Thermal:
         self._dirp_destroy.restype = c_int32
 
         self._dirp_get_rjpeg_version = self._dll_dirp.dirp_get_rjpeg_version
-        self._dirp_get_rjpeg_version.argtypes = [DIRP_HANDLE, POINTER(dirp_rjpeg_version_t)]
+        self._dirp_get_rjpeg_version.argtypes = [
+            DIRP_HANDLE,
+            POINTER(dirp_rjpeg_version_t),
+        ]
         self._dirp_get_rjpeg_version.restype = c_int32
 
         self._dirp_get_rjpeg_resolution = self._dll_dirp.dirp_get_rjpeg_resolution
-        self._dirp_get_rjpeg_resolution.argtypes = [DIRP_HANDLE, POINTER(dirp_resolotion_t)]
+        self._dirp_get_rjpeg_resolution.argtypes = [
+            DIRP_HANDLE,
+            POINTER(dirp_resolotion_t),
+        ]
         self._dirp_get_rjpeg_resolution.restype = c_int32
 
         # Get orignial/custom temperature measurement parameters.
         self._dirp_get_measurement_params = self._dll_dirp.dirp_get_measurement_params
-        self._dirp_get_measurement_params.argtypes = [DIRP_HANDLE, POINTER(dirp_measurement_params_t)]
+        self._dirp_get_measurement_params.argtypes = [
+            DIRP_HANDLE,
+            POINTER(dirp_measurement_params_t),
+        ]
         self._dirp_get_measurement_params.restype = c_int32
 
         # Set custom temperature measurement parameters.
         self._dirp_set_measurement_params = self._dll_dirp.dirp_set_measurement_params
-        self._dirp_set_measurement_params.argtypes = [DIRP_HANDLE, POINTER(dirp_measurement_params_t)]
+        self._dirp_set_measurement_params.argtypes = [
+            DIRP_HANDLE,
+            POINTER(dirp_measurement_params_t),
+        ]
         self._dirp_set_measurement_params.restype = c_int32
 
         # Measure temperature of whole thermal image with RAW data in R-JPEG.
@@ -514,8 +560,8 @@ class Thermal:
         self._dirp_measure_ex.restype = c_int32
 
     def parse(
-            self,
-            filepath_image: str,
+        self,
+        filepath_image: str,
     ) -> np.ndarray:
         """
         Parser infrared camera data as `NumPy` data.
@@ -536,45 +582,64 @@ class Thermal:
         """
 
         assert isinstance(filepath_image, str) and os.path.exists(
-            filepath_image), f'Check if the file exists: {filepath_image}.'
-        meta = subprocess.Popen([self._filepath_exiftool, filepath_image], stdout=subprocess.PIPE).communicate()[0]
-        meta = meta.decode('utf8').replace('\r', '')
-        meta_json = dict([
-            (field.split(':')[0].strip(), field.split(':')[1].strip()) for field in meta.split('\n') if ':' in field
-        ])
-        assert 'Camera Model Name' in meta_json, f'{filepath_image} `Camera Model Name` field is missing'
-        camera_model = meta_json['Camera Model Name']
-        assert camera_model in self._support_camera_model or Thermal.FLIR in camera_model, f'Unsupported camera type: {camera_model}'
-        if camera_model in {
-            Thermal.FLIR,
-            Thermal.FLIR_DEFAULT,
-            Thermal.FLIR_T640,
-            Thermal.FLIR_E40,
-            Thermal.FLIR_B60,
-            Thermal.FLIR_AX8,
-            Thermal.DJI_XT2,
-            Thermal.DJI_XTR,
-        } or Thermal.FLIR in camera_model:
-            kwargs = dict((name, float(meta_json[key])) for name, key in [
-                ('emissivity', 'Emissivity'),
-                ('ir_window_transmission', 'IR Window Transmission'),
-                ('planck_r1', 'Planck R1'),
-                ('planck_b', 'Planck B'),
-                ('planck_f', 'Planck F'),
-                ('planck_o', 'Planck O'),
-                ('planck_r2', 'Planck R2'),
-                ('ata1', 'Atmospheric Trans Alpha 1'),
-                ('ata2', 'Atmospheric Trans Alpha 2'),
-                ('atb1', 'Atmospheric Trans Beta 1'),
-                ('atb2', 'Atmospheric Trans Beta 2'),
-                ('atx', 'Atmospheric Trans X'),
-            ] if key in meta_json)
+            filepath_image
+        ), f"Check if the file exists: {filepath_image}."
+        meta = subprocess.Popen(
+            [self._filepath_exiftool, filepath_image], stdout=subprocess.PIPE
+        ).communicate()[0]
+        meta = meta.decode("utf8").replace("\r", "")
+        meta_json = dict(
+            [
+                (field.split(":")[0].strip(), field.split(":")[1].strip())
+                for field in meta.split("\n")
+                if ":" in field
+            ]
+        )
+        assert (
+            "Camera Model Name" in meta_json
+        ), f"{filepath_image} `Camera Model Name` field is missing"
+        camera_model = meta_json["Camera Model Name"]
+        assert (
+            camera_model in self._support_camera_model or Thermal.FLIR in camera_model
+        ), f"Unsupported camera type: {camera_model}"
+        if (
+            camera_model
+            in {
+                Thermal.FLIR,
+                Thermal.FLIR_DEFAULT,
+                Thermal.FLIR_T640,
+                Thermal.FLIR_E40,
+                Thermal.FLIR_B60,
+                Thermal.FLIR_AX8,
+                Thermal.DJI_XT2,
+                Thermal.DJI_XTR,
+            }
+            or Thermal.FLIR in camera_model
+        ):
+            kwargs = dict(
+                (name, float(meta_json[key]))
+                for name, key in [
+                    ("emissivity", "Emissivity"),
+                    ("ir_window_transmission", "IR Window Transmission"),
+                    ("planck_r1", "Planck R1"),
+                    ("planck_b", "Planck B"),
+                    ("planck_f", "Planck F"),
+                    ("planck_o", "Planck O"),
+                    ("planck_r2", "Planck R2"),
+                    ("ata1", "Atmospheric Trans Alpha 1"),
+                    ("ata2", "Atmospheric Trans Alpha 2"),
+                    ("atb1", "Atmospheric Trans Beta 1"),
+                    ("atb2", "Atmospheric Trans Beta 2"),
+                    ("atx", "Atmospheric Trans X"),
+                ]
+                if key in meta_json
+            )
             for name, key in [
-                ('object_distance', 'Object Distance'),
-                ('atmospheric_temperature', 'Atmospheric Temperature'),
-                ('reflected_apparent_temperature', 'Reflected Apparent Temperature'),
-                ('ir_window_temperature', 'IR Window Temperature'),
-                ('relative_humidity', 'Relative Humidity'),
+                ("object_distance", "Object Distance"),
+                ("atmospheric_temperature", "Atmospheric Temperature"),
+                ("reflected_apparent_temperature", "Reflected Apparent Temperature"),
+                ("ir_window_temperature", "IR Window Temperature"),
+                ("relative_humidity", "Relative Humidity"),
             ]:
                 if key in meta_json:
                     kwargs[name] = float(meta_json[key][:-2])
@@ -585,61 +650,64 @@ class Thermal:
         elif camera_model in {
             Thermal.DJI_ZH20T,
             Thermal.DJI_XTS,
-
             Thermal.DJI_M2EA,
             Thermal.DJI_H20N,
             Thermal.DJI_M3T,
             Thermal.DJI_M30T,
         }:
-            for key in ['Image Height', 'Image Width']:
-                assert key in meta_json, f'The `{key}` field is missing'
-            kwargs = dict((name, float(re.findall(r'\d+\.\d+|\d+', meta_json[key])[0])) for name, key in [
-                ('object_distance', 'Object Distance'),
-                ('relative_humidity', 'Relative Humidity'),
-                ('emissivity', 'Emissivity'),
-                ('reflected_apparent_temperature', 'Reflected Temperature'),
-            ] if key in meta_json)
+            for key in ["Image Height", "Image Width"]:
+                assert key in meta_json, f"The `{key}` field is missing"
+            kwargs = dict(
+                (name, float(re.findall(r"\d+\.\d+|\d+", meta_json[key])[0]))
+                for name, key in [
+                    ("object_distance", "Object Distance"),
+                    ("relative_humidity", "Relative Humidity"),
+                    ("emissivity", "Emissivity"),
+                    ("reflected_apparent_temperature", "Reflected Temperature"),
+                ]
+                if key in meta_json
+            )
             # NOTE: the jpeg image of M30T has a fixed size of 640x512
             if camera_model != Thermal.DJI_M30T:
-                kwargs['image_height'] = int(meta_json['Image Height'])
-                kwargs['image_width'] = int(meta_json['Image Width'])
-            if 'emissivity' in kwargs:
-                kwargs['emissivity'] /= 100
+                kwargs["image_height"] = int(meta_json["Image Height"])
+                kwargs["image_width"] = int(meta_json["Image Width"])
+            if "emissivity" in kwargs:
+                kwargs["emissivity"] /= 100
             if camera_model in [
                 Thermal.DJI_M2EA,
                 Thermal.DJI_H20N,
                 Thermal.DJI_M3T,
                 Thermal.DJI_M30T,
             ]:
-                kwargs['m2ea_mode'] = True,
+                kwargs["m2ea_mode"] = (True,)
             return self.parse_dirp2(
                 filepath_image=filepath_image,
                 **kwargs,
             )
 
     def parse_flir(
-            self,
-            filepath_image: str,
-            # params
-            emissivity: float = 1.0,
-            object_distance: float = 1.0,
-            atmospheric_temperature: float = 20.0,
-            reflected_apparent_temperature: float = 20.0,
-            ir_window_temperature: float = 20.0,
-            ir_window_transmission: float = 1.0,
-            relative_humidity: float = 50.0,
-            # planck constants
-            planck_r1: float = 21106.77,
-            planck_b: float = 1501.0,
-            planck_f: float = 1.0,
-            planck_o: float = -7340.0,
-            planck_r2: float = 0.012545258,
-            # constants
-            ata1: float = 0.006569,
-            ata2: float = 0.01262,
-            atb1: float = -0.002276,
-            atb2: float = -0.00667,
-            atx: float = 1.9,
+        self,
+        filepath_image: str,
+        # params
+        emissivity: float = 1.0,
+        object_distance: float = 1.0,
+        atmospheric_temperature: float = 20.0,
+        reflected_apparent_temperature: float = 20.0,
+        ir_window_temperature: float = 20.0,
+        ir_window_transmission: float = 1.0,
+        relative_humidity: float = 50.0,
+        # planck constants
+        planck_r1: float = 21106.77,
+        planck_b: float = 1501.0,
+        planck_f: float = 1.0,
+        planck_o: float = -7340.0,
+        planck_r2: float = 0.012545258,
+        # constants
+        ata1: float = 0.006569,
+        ata2: float = 0.01262,
+        atb1: float = -0.002276,
+        atb2: float = -0.00667,
+        atx: float = 1.9,
     ) -> np.ndarray:
         """
         Parser infrared camera data as `NumPy` data`.
@@ -675,18 +743,18 @@ class Thermal:
             * from https://github.com/detecttechnologies/thermal_base
             * from https://github.com/aloisklink/flirextractor/blob/1fc759808c747ad5562a9ddb3cd75c4def8a3f69/flirextractor/raw_temp_to_celcius.py
         """
-        thermal_img_bytes = subprocess.check_output([
-            self._filepath_exiftool, '-RawThermalImage', '-b', filepath_image
-        ])
+        thermal_img_bytes = subprocess.check_output(
+            [self._filepath_exiftool, "-RawThermalImage", "-b", filepath_image]
+        )
 
         thermal_img_stream = BytesIO(thermal_img_bytes)
         thermal_img = Image.open(thermal_img_stream)
         img_format = thermal_img.format
 
         # checking for the type of the decoded images
-        if img_format == 'TIFF':
+        if img_format == "TIFF":
             raw = np.array(thermal_img)
-        elif img_format == 'PNG':
+        elif img_format == "PNG":
             raw = unpack(filepath_image)
         else:
             raise ValueError
@@ -698,41 +766,99 @@ class Thermal:
         h2o = (relative_humidity / 100) * np.exp(
             1.5587
             + 0.06939 * atmospheric_temperature
-            - 0.00027816 * atmospheric_temperature ** 2
-            + 0.00000068455 * atmospheric_temperature ** 3
+            - 0.00027816 * atmospheric_temperature**2
+            + 0.00000068455 * atmospheric_temperature**3
         )
-        tau1 = atx * np.exp(-np.sqrt(object_distance / 2) * (ata1 + atb1 * np.sqrt(h2o))) + (1 - atx) * np.exp(
+        tau1 = atx * np.exp(
+            -np.sqrt(object_distance / 2) * (ata1 + atb1 * np.sqrt(h2o))
+        ) + (1 - atx) * np.exp(
             -np.sqrt(object_distance / 2) * (ata2 + atb2 * np.sqrt(h2o))
         )
-        tau2 = atx * np.exp(-np.sqrt(object_distance / 2) * (ata1 + atb1 * np.sqrt(h2o))) + (1 - atx) * np.exp(
+        tau2 = atx * np.exp(
+            -np.sqrt(object_distance / 2) * (ata1 + atb1 * np.sqrt(h2o))
+        ) + (1 - atx) * np.exp(
             -np.sqrt(object_distance / 2) * (ata2 + atb2 * np.sqrt(h2o))
         )
         # radiance from the environment
-        raw_refl1 = planck_r1 / \
-            (planck_r2 * (np.exp(planck_b / (reflected_apparent_temperature + ABSOLUTE_ZERO)) - planck_f)) - planck_o
+        raw_refl1 = (
+            planck_r1
+            / (
+                planck_r2
+                * (
+                    np.exp(planck_b / (reflected_apparent_temperature + ABSOLUTE_ZERO))
+                    - planck_f
+                )
+            )
+            - planck_o
+        )
         # Reflected component
         raw_refl1_attn = (1 - emissivity) / emissivity * raw_refl1
 
         # Emission from atmosphere 1
-        raw_atm1 = (planck_r1 / (planck_r2 * (np.exp(planck_b / (atmospheric_temperature + ABSOLUTE_ZERO)) - planck_f)) - planck_o)
+        raw_atm1 = (
+            planck_r1
+            / (
+                planck_r2
+                * (
+                    np.exp(planck_b / (atmospheric_temperature + ABSOLUTE_ZERO))
+                    - planck_f
+                )
+            )
+            - planck_o
+        )
         # attenuation for atmospheric 1 emission
         raw_atm1_attn = (1 - tau1) / emissivity / tau1 * raw_atm1
 
         # Emission from window due to its own temp
-        raw_wind = (planck_r1 / (planck_r2 * (np.exp(planck_b / (ir_window_temperature + ABSOLUTE_ZERO)) - planck_f)) - planck_o)
+        raw_wind = (
+            planck_r1
+            / (
+                planck_r2
+                * (
+                    np.exp(planck_b / (ir_window_temperature + ABSOLUTE_ZERO))
+                    - planck_f
+                )
+            )
+            - planck_o
+        )
         # Componen due to window emissivity
-        raw_wind_attn = (emiss_wind / emissivity / tau1 / ir_window_transmission * raw_wind)
+        raw_wind_attn = (
+            emiss_wind / emissivity / tau1 / ir_window_transmission * raw_wind
+        )
 
         # Reflection from window due to external objects
-        raw_refl2 = (planck_r1 / (planck_r2 *
-                     (np.exp(planck_b / (reflected_apparent_temperature + ABSOLUTE_ZERO)) - planck_f)) - planck_o)
+        raw_refl2 = (
+            planck_r1
+            / (
+                planck_r2
+                * (
+                    np.exp(planck_b / (reflected_apparent_temperature + ABSOLUTE_ZERO))
+                    - planck_f
+                )
+            )
+            - planck_o
+        )
         # component due to window reflectivity
-        raw_refl2_attn = (refl_wind / emissivity / tau1 / ir_window_transmission * raw_refl2)
+        raw_refl2_attn = (
+            refl_wind / emissivity / tau1 / ir_window_transmission * raw_refl2
+        )
 
         # Emission from atmosphere 2
-        raw_atm2 = (planck_r1 / (planck_r2 * (np.exp(planck_b / (atmospheric_temperature + ABSOLUTE_ZERO)) - planck_f)) - planck_o)
+        raw_atm2 = (
+            planck_r1
+            / (
+                planck_r2
+                * (
+                    np.exp(planck_b / (atmospheric_temperature + ABSOLUTE_ZERO))
+                    - planck_f
+                )
+            )
+            - planck_o
+        )
         # attenuation for atmospheric 2 emission
-        raw_atm2_attn = ((1 - tau2) / emissivity / tau1 / ir_window_transmission / tau2 * raw_atm2)
+        raw_atm2_attn = (
+            (1 - tau2) / emissivity / tau1 / ir_window_transmission / tau2 * raw_atm2
+        )
 
         raw_obj = (
             raw / emissivity / tau1 / ir_window_transmission / tau2
@@ -744,21 +870,21 @@ class Thermal:
         )
         val_to_log = planck_r1 / (planck_r2 * (raw_obj + planck_o)) + planck_f
         if any(val_to_log.ravel() < 0):
-            raise ValueError(f'Image seems to be corrupted: {filepath_image}')
+            raise ValueError(f"Image seems to be corrupted: {filepath_image}")
         # temperature from radiance
         temperature = planck_b / np.log(val_to_log) - ABSOLUTE_ZERO
         return np.array(temperature, self._dtype)
 
     def parse_dirp2(
-            self,
-            filepath_image: str,
-            image_height: int = 512,
-            image_width: int = 640,
-            object_distance: float = 5.0,
-            relative_humidity: float = 70.0,
-            emissivity: float = 1.0,
-            reflected_apparent_temperature: float = 23.0,
-            m2ea_mode: bool = False,
+        self,
+        filepath_image: str,
+        image_height: int = 512,
+        image_width: int = 640,
+        object_distance: float = 5.0,
+        relative_humidity: float = 70.0,
+        emissivity: float = 1.0,
+        reflected_apparent_temperature: float = 23.0,
+        m2ea_mode: bool = False,
     ):
         """
         Parser infrared camera data as `NumPy` data`.
@@ -780,7 +906,7 @@ class Thermal:
         References:
             * [DJI Thermal SDK](https://www.dji.com/cn/downloads/softwares/dji-thermal-sdk)
         """
-        with open(filepath_image, 'rb') as file:
+        with open(filepath_image, "rb") as file:
             raw = file.read()
             raw_size = c_int32(len(raw))
             raw_c_uint8 = cast(raw, POINTER(c_uint8))
@@ -790,16 +916,24 @@ class Thermal:
         rjpeg_resolotion = dirp_resolotion_t()
 
         return_status = self._dirp_create_from_rjpeg(raw_c_uint8, raw_size, handle)
-        assert return_status == Thermal.DIRP_SUCCESS, f'dirp_create_from_rjpeg error {filepath_image}:{return_status}'
-        assert self._dirp_get_rjpeg_version(handle, rjpeg_version) == Thermal.DIRP_SUCCESS
-        assert self._dirp_get_rjpeg_resolution(handle, rjpeg_resolotion) == Thermal.DIRP_SUCCESS
+        assert (
+            return_status == Thermal.DIRP_SUCCESS
+        ), f"dirp_create_from_rjpeg error {filepath_image}:{return_status}"
+        assert (
+            self._dirp_get_rjpeg_version(handle, rjpeg_version) == Thermal.DIRP_SUCCESS
+        )
+        assert (
+            self._dirp_get_rjpeg_resolution(handle, rjpeg_resolotion)
+            == Thermal.DIRP_SUCCESS
+        )
 
         if not m2ea_mode:
             params = dirp_measurement_params_t()
             params_point = pointer(params)
             return_status = self._dirp_get_measurement_params(handle, params_point)
-            assert return_status == Thermal.DIRP_SUCCESS, f'dirp_get_measurement_params error {
-                filepath_image}:{return_status}'
+            assert (
+                return_status == Thermal.DIRP_SUCCESS
+            ), f"dirp_get_measurement_params error {filepath_image}:{return_status}"
 
             if isinstance(object_distance, (float, int)):
                 params.distance = object_distance
@@ -811,20 +945,26 @@ class Thermal:
                 params.reflection = reflected_apparent_temperature
 
             return_status = self._dirp_set_measurement_params(handle, params)
-            assert return_status == Thermal.DIRP_SUCCESS, f'dirp_set_measurement_params error {
-                filepath_image}:{return_status}'
+            assert (
+                return_status == Thermal.DIRP_SUCCESS
+            ), f"dirp_set_measurement_params error {filepath_image}:{return_status}"
 
         if self._dtype.__name__ == np.float32.__name__:
             data = np.zeros(image_width * image_height, dtype=np.float32)
             data_ptr = data.ctypes.data_as(POINTER(c_float))
             data_size = c_int32(image_width * image_height * sizeof(c_float))
-            assert self._dirp_measure_ex(handle, data_ptr, data_size) == Thermal.DIRP_SUCCESS
+            assert (
+                self._dirp_measure_ex(handle, data_ptr, data_size)
+                == Thermal.DIRP_SUCCESS
+            )
             temp = np.reshape(data, (image_height, image_width))
         elif self._dtype.__name__ == np.int16.__name__:
             data = np.zeros(image_width * image_height, dtype=np.int16)
             data_ptr = data.ctypes.data_as(POINTER(c_int16))
             data_size = c_int32(image_width * image_height * sizeof(c_int16))
-            assert self._dirp_measure(handle, data_ptr, data_size) == Thermal.DIRP_SUCCESS
+            assert (
+                self._dirp_measure(handle, data_ptr, data_size) == Thermal.DIRP_SUCCESS
+            )
             temp = np.reshape(data, (image_height, image_width)) / 10
         else:
             raise ValueError
